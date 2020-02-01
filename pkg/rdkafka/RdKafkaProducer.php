@@ -21,6 +21,11 @@ class RdKafkaProducer implements Producer
      */
     private $producer;
 
+    /**
+     * @var bool
+     */
+    private $produceAsync = true;
+
     public function __construct(VendorProducer $producer, Serializer $serializer)
     {
         $this->producer = $producer;
@@ -57,11 +62,19 @@ class RdKafkaProducer implements Producer
             } else {
                 $topic->producev($partition, 0 /* must be 0 */, $payload, $key, $message->getHeaders());
 
+                if (!$this->produceAsync) {
+                    $this->flush();
+                }
+
                 return;
             }
         }
 
         $topic->produce($partition, 0 /* must be 0 */, $payload, $key);
+
+        if (!$this->produceAsync) {
+            $this->flush();
+        }
     }
 
     /**
@@ -110,5 +123,23 @@ class RdKafkaProducer implements Producer
     public function getTimeToLive(): ?int
     {
         return null;
+    }
+
+    public function setProduceAsync(bool $async): void
+    {
+        $this->produceAsync = $async;
+    }
+
+    private function flush(): void
+    {
+        $start = microtime(true);
+
+        while ($this->producer->getOutQLen() > 0) {
+            $this->producer->poll(1);
+
+            if (microtime(true) - $start > 10) {
+                throw new \RuntimeException('Message sending failed');
+            }
+        }
     }
 }

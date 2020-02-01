@@ -50,9 +50,6 @@ class RdKafkaContext implements Context
      */
     private $rdKafkaConsumers;
 
-    /**
-     * @param array $config
-     */
     public function __construct(array $config)
     {
         $this->config = $config;
@@ -96,7 +93,11 @@ class RdKafkaContext implements Context
      */
     public function createProducer(): Producer
     {
-        return new RdKafkaProducer($this->getProducer(), $this->getSerializer());
+        $producer = new RdKafkaProducer($this->getProducer(), $this->getSerializer());
+
+        $producer->setProduceAsync($this->config['produce_async'] ?? true);
+
+        return $producer;
     }
 
     /**
